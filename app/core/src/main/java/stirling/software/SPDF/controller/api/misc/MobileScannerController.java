@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -300,9 +301,12 @@ public class MobileScannerController {
                     .contentType(MediaType.parseMediaType(contentType))
                     .header(
                             HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + filename + "\"")
+                            ContentDisposition.attachment().filename(filename).build().toString())
                     .body(resource);
 
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid download request: session={}, file={}", sessionId, filename);
+            return ResponseEntity.badRequest().build();
         } catch (IOException e) {
             log.warn("File not found: session={}, file={}", sessionId, filename);
             return ResponseEntity.notFound().build();

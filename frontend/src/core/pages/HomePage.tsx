@@ -203,12 +203,12 @@ export default function HomePage() {
   // Note: File selection limits are now handled directly by individual tools
 
   return (
-    <div className="h-screen overflow-hidden">
+    <main className="h-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       {isMobile ? (
-        <div className="mobile-layout">
-          <div className="mobile-toggle">
+        <div className="mobile-layout antialiased">
+          <div className="mobile-toggle shadow-sm">
             <div className="mobile-header">
-              <div className="mobile-brand">
+              <div className="mobile-brand text-sm font-semibold tracking-tight">
                 <img src={brandIconSrc} alt="" aria-hidden="true" className="mobile-brand-icon" />
                 <img src={brandTextSrc} alt={brandAltText} className="mobile-brand-text" />
               </div>
@@ -218,6 +218,8 @@ export default function HomePage() {
                 type="button"
                 role="tab"
                 aria-selected={activeMobileView === "tools"}
+                id="mobile-tab-tools"
+                aria-controls="mobile-panel-tools"
                 className={`mobile-toggle-button ${activeMobileView === "tools" ? "active" : ""}`}
                 onClick={() => handleSelectMobileView("tools")}
               >
@@ -227,6 +229,8 @@ export default function HomePage() {
                 type="button"
                 role="tab"
                 aria-selected={activeMobileView === "workbench"}
+                id="mobile-tab-workbench"
+                aria-controls="mobile-panel-workbench"
                 className={`mobile-toggle-button ${activeMobileView === "workbench" ? "active" : ""}`}
                 onClick={() => handleSelectMobileView("workbench")}
               >
@@ -238,23 +242,35 @@ export default function HomePage() {
             </span>
           </div>
           <div ref={sliderRef} className="mobile-slider">
-            <div className="mobile-slide" aria-label={t('home.mobile.toolsSlide', 'Tool selection panel')}>
+            <section
+              id="mobile-panel-tools"
+              role="tabpanel"
+              aria-labelledby="mobile-tab-tools"
+              className="mobile-slide"
+              aria-label={t('home.mobile.toolsSlide', 'Tool selection panel')}
+            >
               <div className="mobile-slide-content">
                 <ToolPanel />
               </div>
-            </div>
-            <div className="mobile-slide" aria-label={t('home.mobile.workbenchSlide', 'Workspace panel')}>
+            </section>
+            <section
+              id="mobile-panel-workbench"
+              role="tabpanel"
+              aria-labelledby="mobile-tab-workbench"
+              className="mobile-slide"
+              aria-label={t('home.mobile.workbenchSlide', 'Workspace panel')}
+            >
               <div className="mobile-slide-content">
-                <div className="flex-1 min-h-0 flex">
+                <div className="flex min-h-0 flex-1">
                   <Workbench />
                   <RightRail />
                 </div>
               </div>
-            </div>
+            </section>
           </div>
-          <div className="mobile-bottom-bar">
+          <div className="mobile-bottom-bar shadow-[0_-1px_12px_rgba(0,0,0,0.06)]">
             <button
-              className="mobile-bottom-button"
+              className="mobile-bottom-button focus-visible:ring-2 focus-visible:ring-blue-500/60"
               aria-label={t('quickAccess.allTools', 'Tools')}
               onClick={() => {
                 handleBackToTools();
@@ -268,7 +284,7 @@ export default function HomePage() {
             </button>
             {toolAvailability['automate']?.available !== false && (
               <button
-                className="mobile-bottom-button"
+                className="mobile-bottom-button focus-visible:ring-2 focus-visible:ring-blue-500/60"
                 aria-label={t('quickAccess.automate', 'Automate')}
                 onClick={() => {
                   handleToolSelect('automate');
@@ -282,7 +298,7 @@ export default function HomePage() {
               </button>
             )}
             <button
-              className="mobile-bottom-button"
+              className="mobile-bottom-button focus-visible:ring-2 focus-visible:ring-blue-500/60"
               aria-label={t('home.mobile.openFiles', 'Open files')}
               onClick={() => openFilesModal()}
             >
@@ -290,7 +306,7 @@ export default function HomePage() {
               <span className="mobile-bottom-button-label">{t('quickAccess.files', 'Files')}</span>
             </button>
             <button
-              className="mobile-bottom-button"
+              className="mobile-bottom-button focus-visible:ring-2 focus-visible:ring-blue-500/60"
               aria-label={t('quickAccess.config', 'Config')}
               onClick={() => setConfigModalOpen(true)}
             >
@@ -318,6 +334,6 @@ export default function HomePage() {
           <FileManager selectedTool={selectedTool as any /* FIX ME */} />
         </Group>
       )}
-    </div>
+    </main>
   );
 }
