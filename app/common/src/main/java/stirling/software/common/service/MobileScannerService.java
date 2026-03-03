@@ -26,9 +26,13 @@ import lombok.extern.slf4j.Slf4j;
 public class MobileScannerService {
 
     private static final long SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    private static final long MAX_FILE_SIZE_BYTES = 25L * 1024 * 1024; // 25MB per file
+    private static final int MAX_FILES_PER_UPLOAD = 20;
     private static final Pattern FILENAME_SANITIZE_PATTERN = Pattern.compile("[^a-zA-Z0-9._-]");
     private static final Pattern SESSION_ID_VALIDATION_PATTERN = Pattern.compile("[a-zA-Z0-9-]+");
     private static final Pattern FILE_EXTENSION_PATTERN = Pattern.compile("[.][^.]+$");
+    private static final Pattern ALLOWED_EXTENSION_PATTERN =
+            Pattern.compile("(?i)^.*\\.(jpg|jpeg|png|webp|pdf)$");
     private final Map<String, SessionData> activeSessions = new ConcurrentHashMap<>();
     private final Path tempDirectory;
 
@@ -94,9 +98,11 @@ public class MobileScannerService {
      */
     public void uploadFiles(String sessionId, List<MultipartFile> files) throws IOException {
         validateSessionId(sessionId);
+        SessionData session = getValidActiveSession(sessionId);
 
-        SessionData session =
-                activeSessions.computeIfAbsent(sessionId, id -> new SessionData(sessionId));
+        if (files.size() > MAX_FILES_PER_UPLOAD) {
+            throw new IllegalArgumentException("Too many files in one upload request");
+        }
 
         // Create session directory
         Path sessionDir = getSafeSessionDirectory(sessionId);
@@ -115,6 +121,7 @@ public class MobileScannerService {
 
             // Sanitize filename
             String safeFilename = sanitizeFilename(originalFilename);
+            validateFileUpload(file, safeFilename);
             Path filePath = sessionDir.resolve(safeFilename).normalize().toAbsolutePath();
 
             // Ensure resulting path stays within the session directory
@@ -158,8 +165,10 @@ public class MobileScannerService {
      * @return List of file metadata, or empty list if session doesn't exist
      */
     public List<FileMetadata> getSessionFiles(String sessionId) {
-        SessionData session = activeSessions.get(sessionId);
-        if (session == null) {
+        SessionData session;
+        try {
+            session = getValidActiveSession(sessionId);
+        } catch (IllegalArgumentException e) {
             return List.of();
         }
         session.updateLastAccess();
@@ -175,10 +184,7 @@ public class MobileScannerService {
      * @throws IOException If file not found or session doesn't exist
      */
     public Path getFile(String sessionId, String filename) throws IOException {
-        SessionData session = activeSessions.get(sessionId);
-        if (session == null) {
-            throw new IOException("Session not found: " + sessionId);
-        }
+        SessionData session = getValidActiveSession(sessionId);
 
         Path filePath = getSafeFilePath(sessionId, filename);
         if (!Files.exists(filePath)) {
@@ -188,6 +194,31 @@ public class MobileScannerService {
         session.updateLastAccess();
         session.markFileAsDownloaded(filename);
         return filePath;
+    }
+
+    private void validateFileUpload(MultipartFile file, String safeFilename) {
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Uploaded file exceeds 25MB limit");
+        }
+
+        if (!ALLOWED_EXTENSION_PATTERN.matcher(safeFilename).matches()) {
+            throw new IllegalArgumentException("Unsupported file type for mobile scanner upload");
+        }
+    }
+
+    private SessionData getValidActiveSession(String sessionId) {
+        SessionData session = activeSessions.get(sessionId);
+        if (session == null) {
+            throw new IllegalArgumentException("Session not found or expired");
+        }
+
+        long now = System.currentTimeMillis();
+        if (now > session.getLastAccessTime() + SESSION_TIMEOUT_MS) {
+            deleteSession(sessionId);
+            throw new IllegalArgumentException("Session not found or expired");
+        }
+
+        return session;
     }
 
     /**
